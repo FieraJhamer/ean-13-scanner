@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lector EAN-13 con Registro</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0; 
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #scanner-container {
+            width: 100%;
+            max-width: 500px;
+            aspect-ratio: 9/16;
+            margin-bottom: 20px;
+        }
+
+        #result,
+        #form-container {
+            margin-top: 20px;
+        }
+
+        input,
+        button {
+            padding: 8px;
+            margin: 5px 0;
+            width: 100%;
+            max-width: 300px;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Escáner de Código de Barras (EAN-13)</h2>
+    <div id="scanner-container"></div>
+    <div id="result"></div>
+
+    <div id="form-container" style="display:none;">
+        <h3>Agregar producto</h3>
+        <form id="add-product-form">
+            <input type="text" id="product-name" placeholder="Nombre del producto" required><br>
+            <input type="text" id="product-price" placeholder="Precio" required><br>
+            <button type="submit">Guardar producto</button>
+        </form>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <script>
+        const listado = {
+            "7790123456789": { nombre: "Yerba Mate", precio: "$2000" },
+            "7891234567890": { nombre: "Leche Entera", precio: "$1500" },
+            "7506306249974": { nombre: "Desodorante AXE", precio: "$700" },
+            "7791600778132": { nombre: "Desodorante Bravo", precio: "$500" }
+        };
+
+        let ultimoCodigo = null;
+
+        function mostrarProducto(code) {
+            const resultDiv = document.getElementById("result");
+            if (listado[code]) {
+                const prod = listado[code];
+                resultDiv.innerHTML =
+                    `<strong>Producto:</strong> ${prod.nombre}<br>
+           <strong>Precio:</strong> ${prod.precio}`;
+                document.getElementById("form-container").style.display = "none";
+            } else {
+                resultDiv.innerHTML = `<strong>Código no encontrado:</strong> ${code}`;
+                document.getElementById("form-container").style.display = "block";
+            }
+        }
+
+        function startScanner() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector("#scanner-container"),
+                    constraints: {
+                        facingMode: "environment"
+                    }
+                },
+                decoder: {
+                    readers: ["ean_reader"]
+                }
+            }, function (err) {
+                if (err) {
+                    console.error(err);
+                    return;
+                }
+                Quagga.start();
+            });
+
+            Quagga.onDetected(function (data) {
+                const code = data.codeResult.code;
+                if (code !== ultimoCodigo) {
+                    ultimoCodigo = code;
+                    mostrarProducto(code);
+                }
+            });
+        }
+
+        document.getElementById("add-product-form").addEventListener("submit", function (e) {
+            e.preventDefault();
+            const name = document.getElementById("product-name").value.trim();
+            const price = document.getElementById("product-price").value.trim();
+
+            if (name && price && ultimoCodigo) {
+                listado[ultimoCodigo] = { nombre: name, precio: price };
+                mostrarProducto(ultimoCodigo);
+                e.target.reset();
+            }
+        });
+
+        window.addEventListener("load", startScanner);
+    </script>
+</body>
+
+</html>
